@@ -42,6 +42,11 @@ Create a virtual bridge
 $ ip link add <BRIDGE> type bridge
 ```
 
+Create a virtual bridge
+```
+$ ip link add <BRIDGE> type bridge
+```
+
 Create a virtual ethernet cable with two named plugs
 ```
 $ ip link add <PLUG1> type veth peer name <PLUG2>
@@ -164,6 +169,26 @@ sudo ovs-ofctl dump-flows <SWITCH>
 List controllers alongside their configuration
 ```
 sudo ovs-vsctl list controller
+```
+
+Create a virtual bridge
+```
+sudo ovs-vsctl add-br <NAME>
+```
+
+Delete a virtual bridge
+```
+sudo ovs-vsctl del-br <NAME>
+```
+
+Create a virtual port
+```
+sudo ovs-vsctl add-port <BRIDGE> <INTERFACE>
+```
+
+Delete a virtual port
+```
+sudo ovs-vsctl del-port <NAME>
 ```
 
 ## Ryu usage
