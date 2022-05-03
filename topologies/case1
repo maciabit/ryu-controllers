@@ -1,0 +1,32 @@
+##################################################################
+# Step 1 : create the hosts of the LANs                                                                            #
+##################################################################
+for N in 1 2
+do
+	for H in 1 2 
+	do
+		NH="H"$N"_"$H
+		ip netns add $NH
+		ip link add veth0 type veth peer name eth-$NH
+		ip link set veth0 netns $NH
+		ip netns exec $NH ip link set veth0 up
+		ip netns exec $NH ip addr add 192.168.$N.$H/24 dev veth0
+		MS="Host "$NH" done"
+		echo $MS
+	done
+done
+
+##################################################################
+# Step 2 : create LAN bridge and connect                                                                      #
+##################################################################
+ovs-vsctl add-br LAN 
+for N in 1 2
+do
+	for H in 1 2
+	do
+		NH="h"$N"_"$H
+		ovs-vsctl add-port LAN eth-$NH
+		ip link set eth-$NH up
+	done
+done
+ovs-vsctl 
