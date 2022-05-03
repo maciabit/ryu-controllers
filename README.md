@@ -5,6 +5,7 @@
   sudo apt update
   sudo apt upgrade
   sudo apt install openvswitch-switch
+  sudo apt install net-tools
   sudo apt install git
   sudo apt install python3-pip python3-dev build-essential curl
   sudo pip3 install --upgrade pip
