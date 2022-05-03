@@ -3,7 +3,7 @@
 ##################################################################
 for N in 1 2
 do
-	for H in 1 2 
+	for H in 1 2
 	do
 		NH="H"$N"_"$H
 		ip netns add $NH
@@ -19,14 +19,14 @@ done
 ##################################################################
 # Step 2 : create LAN bridge and connect                                                                      #
 ##################################################################
-ovs-vsctl add-br LAN 
+ovs-vsctl add-br LAN
 for N in 1 2
 do
 	for H in 1 2
 	do
-		NH="h"$N"_"$H
+		NH="H"$N"_"$H
 		ovs-vsctl add-port LAN eth-$NH
 		ip link set eth-$NH up
 	done
 done
-ovs-vsctl 
+ovs-vsctl
