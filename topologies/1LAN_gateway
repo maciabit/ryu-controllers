@@ -1,0 +1,56 @@
+#!/bin/bash
+##################################################################
+# H hosts, N IP networks, one LAN                                #
+# IP networks 192.168.N.0/24
+# gateways 192.168.N.254
+#
+# Command Line $1
+# 0 delete everything
+# 1 create everything
+# Command Line $2
+# number of networks
+##################################################################
+if [[ $# -eq 0 ]]; then
+    echo "Illegal number of parameters"
+    exit 2
+fi
+case $1 in
+1)
+	if [[ $# -ne 2 ]]; then
+    	echo "Illegal number of parameters"
+    	exit 2
+	fi
+
+    ovs-vsctl add-br LAN
+	ip netns add GW
+	ip netns exec GW sysctl -w net.ipv6.conf.all.disable_ipv6=1
+	ip netns exec GW sysctl -w net.ipv6.conf.default.disable_ipv6=1
+	ip netns exec GW sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+
+	for N in $(seq $2)
+	do
+		NH="H"$N"_"$H
+ 		MAC="00:00:00:f"$N":f"$N":f"$N
+		echo "Create host " "$NH" "with MAC address " "$MAC"
+        ip link add veth$N address "$MAC" type veth peer name eth-G$N
+		ip link set veth$N netns GW
+		ip netns exec GW ip link set veth$N up
+		ip netns exec GW ip addr add 192.168.$N.254/24 dev veth$N
+		ovs-vsctl add-port LAN eth-G$N
+		ip link set eth-G$N up
+	done
+;;
+0)
+	if [[ $# -ne 1 ]]; then
+    	echo "Illegal number of parameters"
+    	exit 2
+	fi
+
+	ip netns delete GW
+;;
+2)
+	echo "Test"
+;;
+esac
+
+

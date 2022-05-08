@@ -14,7 +14,7 @@
 
 - Install mininet
   ```
-  git clone git://github.com/mininet/mininet
+  git clone https://github.com/mininet/mininet
   cd mininet
   git checkout -b mininet-2.3.0
   cd ..

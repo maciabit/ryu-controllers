@@ -1,0 +1,57 @@
+#!/bin/bash
+##################################################################
+# H hosts, N IP networks, one LAN                                #
+# IP networks 192.168.N.0/24
+# gateways 192.168.N.254
+#
+# Command Line $1
+# 0 delete everything
+# 1 create everything
+# Command Line $2
+# number of networks
+# Command Line $3
+# number of hosts
+##################################################################
+if [[ $# -ne 3 ]]; then
+    echo "Illegal number of parameters"
+    exit 2
+fi
+echo $1 $2 $3
+case $1 in
+1)
+	ovs-vsctl add-br LAN
+	for N in $(seq $2)
+	do
+		for H in $(seq $3)
+		do
+			NH="H"$N"_"$H
+			MAC="00:00:00:"$N$H":"$N$H":"$N$H
+			ip netns add $NH
+			ip link add veth0 address "$MAC" type veth peer name eth-$NH
+			ip link set veth0 netns $NH
+			ip netns exec $NH ip link set veth0 up
+			ip netns exec $NH ip addr add 192.168.$N.$H/24 dev veth0
+			ip netns exec $NH ip route add default via 192.168.$N.254
+			ip netns exec $NH sysctl -w net.ipv6.conf.all.disable_ipv6=1
+			ip netns exec $NH sysctl -w net.ipv6.conf.default.disable_ipv6=1
+			ip netns exec $NH sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+			MS="Host "$NH" done"
+			echo $MS
+			ovs-vsctl add-port LAN eth-$NH
+			ip link set eth-$NH up
+			echo "Set up connection to switch for host "$NH
+		done
+	done
+;;
+0)
+	ip -all netns delete
+	ovs-vsctl del-br LAN
+	ip netns ls
+	ip link
+;;
+2)
+	echo "Test is working"
+;;
+esac
+
+
