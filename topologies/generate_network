@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# TODO: Possibility to choose if each network belongs to a separate LAN
+
+displayHelp() {
+    echo "This interactive script create a custom network using Linux namespace functions"
+    echo
+    echo "Syntax: scriptTemplate [-d|h|c]"
+    echo
+    echo "options:"
+    echo "d     Delete the current configuration."
+    echo "h     Print this Help."
+    echo "c     Start the interactive mode to setup the configuration."
+}
+
+isAnInteger="^[0-9]+$"
+
+if [ "$1" = "h" ] || [ "$1" != "-c" ] && [ "$1" != "-d" ] || [ $# -ne 1 ]; then
+    displayHelp
+fi
+
+if [ "$1" = "-d" ]; then
+    echo "Are you sure you want to delete your namespace configuration? y/n"
+    read -r delete
+    if [ "$delete" = "y" ]; then
+        echo "Deleting..."
+        ip -all netns delete
+	    ovs-vsctl --if-exists del-br LAN
+        echo "Network configuration has been deleted"
+        exit 1
+    fi
+fi
+
+if [ "$1" = "-c" ]; then
+    echo "Insert the number of network you want to create"
+    read -r networks
+    if ! [[ "$networks" =~ $isAnInteger ]] ; then
+        echo "Error: unexpected input. Integer required"
+        exit 1
+    else
+        ovs-vsctl add-br LAN
+        for N in $(seq $networks)
+        do
+        echo "Insert the number of hosts to install in the network number " $N
+        read -r hosts
+        if ! [[ "$hosts" =~ $isAnInteger ]] ; then
+            echo "Error: unexpected input. Integer required"
+            exit 1
+        else
+            for H in $(seq $hosts)
+            do
+            hostName="h"$N"_"$H
+            hostMacAddress="00:00:00:"$N$H":"$N$H":"$N$H
+            ip netns add $hostName
+            ip link add veth0 address "$hostMacAddress" type veth peer name eth-$hostName
+            ip link set veth0 netns $hostName
+            ip netns exec $hostName ip link set veth0 up
+            ip netns exec $hostName ip addr add 192.168.$N.$H/24 dev veth0
+            ip netns exec $hostName ip route add default via 192.168.$N.254
+            ip netns exec $hostName sysctl -w net.ipv6.conf.all.disable_ipv6=1
+            ip netns exec $hostName sysctl -w net.ipv6.conf.default.disable_ipv6=1
+            ip netns exec $hostName sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+            ovs-vsctl add-port LAN eth-$hostName
+            ip link set eth-$hostName up
+            echo "Host number" "$H" "of the network" "$N" "created"
+            done
+        fi
+        done
+    fi
+    if [ $networks > 1 ]; then
+        echo "Do you want to connect all the network with a gateway? y/n"
+        read -r gateway
+        if [ "$gateway" = "y" ]; then
+        	ip netns add GW
+            ip netns exec GW sysctl -w net.ipv6.conf.all.disable_ipv6=1
+            ip netns exec GW sysctl -w net.ipv6.conf.default.disable_ipv6=1
+            ip netns exec GW sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+            for G in $(seq $networks)
+            do
+             	MAC="00:00:00:f"$G":f"$G":f"$G
+                ip link add veth$G address "$MAC" type veth peer name eth-G$G
+                ip link set veth$G netns GW
+                ip netns exec GW ip link set veth$G up
+                ip netns exec GW ip addr add 192.168.$G.254/24 dev veth$G
+                ovs-vsctl add-port LAN eth-G$G
+                ip link set eth-G$G up
+                ip netns exec GW sysctl -w net.ipv4.ip_forward=1
+            done
+        fi
+    fi
+fi
